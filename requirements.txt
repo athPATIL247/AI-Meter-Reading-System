@@ -1,0 +1,14 @@
+opencv-python
+numpy
+requests
+easyocr
+inference-sdk
+torch
+torchvision
+pillow
+scipy
+python-bidi
+
+# Notes:
+# - `easyocr` pulls in several additional deps (torch, pillow, scipy, python-bidi).
+# - Choose an appropriate `torch` wheel for your OS/GPU (see PyTorch install instructions) if you need CUDA support.

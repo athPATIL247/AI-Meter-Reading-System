@@ -1,0 +1,102 @@
+# -----------------------------
+# Python cache and bytecode
+# -----------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+
+# -----------------------------
+# Virtual environments
+# -----------------------------
+.venv/
+venv/
+env/
+ENV/
+.ds-env/
+*.env
+
+# -----------------------------
+# Jupyter Notebook checkpoints
+# -----------------------------
+.ipynb_checkpoints/
+
+# -----------------------------
+# Data and model files
+# -----------------------------
+*.csv
+*.tsv
+*.dat
+*.pkl
+*.joblib
+*.h5
+*.hdf5
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.tflite
+*.model
+*.weights
+*.log
+
+# -----------------------------
+# Datasets and results
+# -----------------------------
+data/
+datasets/
+logs/
+results/
+outputs/
+checkpoints/
+runs/
+models/
+saved_models/
+__results__/
+
+# -----------------------------
+# Temporary and cache files
+# -----------------------------
+*.tmp
+*.temp
+*.log
+*.bak
+*.swp
+*.out
+*.npy
+*.npz
+
+# -----------------------------
+# System and editor files
+# -----------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.code-workspace
+
+# -----------------------------
+# Build / Distribution
+# -----------------------------
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# -----------------------------
+# Environment variables & configs
+# -----------------------------
+.env
+.env.*
+config.json
+secrets.json
+token.json
+credentials.json
+api_keys.json
+
+# -----------------------------
+# Notebooks & reports (optional)
+# Uncomment if needed
+# -----------------------------
+# *.ipynb
+# reports/
+# experiments/
