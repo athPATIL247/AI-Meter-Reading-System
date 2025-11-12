@@ -8,7 +8,7 @@ import easyocr
 import time
 import csv
 import sys
-import re
+import re   
 import os
 from inference_sdk import InferenceHTTPClient
 from mail import send_quick_email
@@ -27,7 +27,7 @@ CSV_PATH = os.path.join(RESULTS_DIR, "readings.csv")
 os.makedirs(RESULTS_DIR, exist_ok=True)
 os.makedirs(DEBUG_DIR, exist_ok=True)
 
-CAM_IP = "http://10.226.81.246"
+CAM_IP = "http://10.226.81.183"
 STREAM_URL = f"{CAM_IP}/stream"
 JPG_URL = f"{CAM_IP}/jpg"
 ROOT_URL = CAM_IP
@@ -52,7 +52,7 @@ FALLBACK_ROIS = [
 ROBOFLOW_API_KEY = "fuOy83MqlC1LtKZ25J0p"
 ROBOFLOW_API_URL = "https://detect.roboflow.com"
 DIGIT_DETECTION_MODEL = "number-detection-for-v9/3"
-METER_DISPLAY_MODEL = "meter-display-yqxh9/1"
+METER_DISPLAY_MODEL = "meter-display-yqxh9/1"   
 
 # Initialize Roboflow client
 CLIENT = InferenceHTTPClient(
@@ -91,6 +91,20 @@ def should_send_email_today():
     print(f"📧 Will send email for {today}")
     return True
 
+def format_reading(raw_reading):
+    """Format reading - take only first 5 digits, ignore 6th decimal"""
+    if not raw_reading:
+        return "00000"
+    
+    # Remove all non-digit characters
+    digits_only = re.sub(r'[^0-9]', '', raw_reading)
+    
+    # Always take first 5 digits only
+    if len(digits_only) >= 5:
+        return digits_only[:5]
+    else:
+        # If less than 5, pad with zeros
+        return digits_only.zfill(5)
 
 def should_send_sms_today():
     """Check if we should send SMS today (once per day)."""
@@ -178,8 +192,11 @@ def get_fallback_rois(frame_shape):
     return rois
 
 def save_reading_csv(reading):
-    """Safely save reading to CSV with error handling"""
+    """Safely save reading to CSV with error handling - ONLY 5 DIGITS"""
     try:
+        # Format the reading to only 5 digits
+        formatted_reading = format_reading(reading)
+        
         file_exists = os.path.exists(CSV_PATH)
         with open(CSV_PATH, "a", newline="", encoding='utf-8') as f:
             writer = csv.writer(f)
@@ -188,12 +205,12 @@ def save_reading_csv(reading):
             writer.writerow([
                 datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 int(time.time()),
-                reading
+                formatted_reading  # Use formatted reading (5 digits only)
             ])
-        print(f"[✓] Saved to CSV: {reading}")
+        print(f"[✓] Saved to CSV: {formatted_reading} (original: {reading})")
     except Exception as e:
         print(f"[!] CSV save error: {e}")
-
+        
 def save_debug_image(image, prefix="crop"):
     """Save debug image with timestamp"""
     try:
@@ -223,6 +240,34 @@ def fetch_root_image():
         return cv2.imdecode(arr, cv2.IMREAD_COLOR)
     except Exception as e:
         print("[!] root fetch error:", e)
+        return None
+
+def fetch_root_image_dir():
+    """
+    Fetch image locally instead of from ESP32 or URL.
+    Reads 'image.png' from the current working directory (or specify path).
+    """
+    try:
+        # Construct the full path to image.png
+        img_path = os.path.join(os.getcwd(), "testing_dataset/meter1.png")
+
+        # Check if the file exists
+        if not os.path.exists(img_path):
+            print("[!] image.png not found in directory:", os.getcwd())
+            return None
+
+        # Read the image using OpenCV
+        img = cv2.imread(img_path, cv2.IMREAD_COLOR)
+
+        # Validate successful read
+        if img is None:
+            print("[!] Failed to read image.png (possibly corrupted)")
+            return None
+
+        return img
+
+    except Exception as e:
+        print("[!] local image fetch error:", e)
         return None
 
 def read_frame_via_stream():
@@ -500,7 +545,8 @@ def main():
         except ValueError:
             print("[!] Invalid input, using default settings")
     
-    cap = read_frame_via_stream()
+    # cap = read_frame_via_stream()
+    cap = None  # Disable stream for local testing
     fallback = False
     if cap is None:
         print("[i] Stream unavailable - falling back to JPG/root.")
@@ -513,7 +559,8 @@ def main():
     try:
         while True:
             if fallback:
-                frame = read_frame_via_jpg() or fetch_root_image()
+                # frame = read_frame_via_jpg() or fetch_root_image()
+                frame = fetch_root_image_dir()  # Local image fetch for testing
                 if frame is None:
                     print("[!] No frame; retrying in 1s...")
                     time.sleep(1)
@@ -536,16 +583,17 @@ def main():
             if reading:
                 now = time.time()
                 if now - last_print > 1.0:
-                    print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Meter Reading: {reading}")
-                    save_reading_csv(reading)
-                    last_print = now
+                    # Format reading to 5 digits before using
+                    formatted_reading = format_reading(reading)
+                    print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Meter Reading: {formatted_reading} (raw: {reading})")
+                    save_reading_csv(reading)  # This function now uses format_reading internally
                     
                     # Send email once per day with debug info
                     print(f"[i] Checking if we should send email today...")
                     if should_send_email_today():
                         try:
                             print("[i] Attempting to send email...")
-                            send_quick_email(reading)
+                            send_quick_email(formatted_reading)  # Send formatted reading
                         except Exception as e:
                             print(f"[!] Email error: {e}")
                     else:
@@ -554,15 +602,15 @@ def main():
                     # attempt SMS once per day
                     if should_send_sms_today():
                         try:
-                            sid = send_reading_sms(reading)
+                            sid = send_reading_sms(formatted_reading)  # Send formatted reading
                             if sid:
                                 record_sms_sent()
                                 print("[i] SMS sent successfully ✅ SID:", sid)
                         except Exception as e:
                             print(f"[!] SMS error: {e}")
                     else:
-                        print("[i] Skipping SMS - already sent today")
-                        
+                        print("[i] Skipping SMS - already sent today")   
+                                
             disp = draw_results(frame, roi, reading)
             cv2.imshow("Flexible Meter OCR - q=quit / s=save / r=refresh / +/-=adjust ROI", disp)
 

@@ -5,8 +5,11 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 import time
 
-def send_quick_email(reading):
-    """Enhanced email sender with detailed error reporting"""
+def send_quick_email(reading, meter_data=None):
+    """Enhanced email sender with detailed error reporting.
+
+    Accepts optional `meter_data` dict to include additional fields in the email body.
+    """
     
     # === UPDATE THESE VALUES ===
     SENDER_EMAIL = "smsintegrationtest@gmail.com"
@@ -16,10 +19,26 @@ def send_quick_email(reading):
     
     try:
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
+
         # Create message
         subject = f"⚡ Meter Reading: {reading} kWh"
-        body = f"""
+        if meter_data:
+            body = f"""
+Electricity Meter Reading Update:
+
+📊 Reading: {meter_data.get('reading', reading)} kWh
+⏰ Time: {meter_data.get('timestamp', current_time)}
+⚡ Voltage: {meter_data.get('voltage', 'N/A')} V
+🔁 Frequency: {meter_data.get('frequency', 'N/A')} Hz
+🔋 Units Used: {meter_data.get('units_used', 'N/A')} kWh
+
+This is an automated notification from your meter monitoring system.
+
+---
+Sent via Python Meter Reader
+"""
+        else:
+            body = f"""
 Electricity Meter Reading Update:
 
 📊 Reading: {reading} kWh
@@ -30,34 +49,34 @@ This is an automated notification from your meter monitoring system.
 ---
 Sent via Python Meter Reader
 """
-        
+
         print(f"[i] Preparing email...")
         print(f"   From: {SENDER_EMAIL}")
         print(f"   To: {RECEIVER_EMAIL}")
         print(f"   Subject: {subject}")
-        
+
         msg = MIMEMultipart()
         msg['From'] = SENDER_EMAIL
         msg['To'] = RECEIVER_EMAIL
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain'))
-        
+
         print("[i] Connecting to Gmail SMTP...")
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.set_debuglevel(1)  # Enable debug output
-        
+
         print("[i] Starting TLS...")
         server.starttls()
-        
+
         print("[i] Logging in...")
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
-        
+
         print("[i] Sending email...")
         server.send_message(msg)
-        
+
         print("[i] Closing connection...")
         server.quit()
-        
+
         print(f"✅ Email successfully sent to {RECEIVER_EMAIL}")
         return True
         
